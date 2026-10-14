@@ -1,0 +1,4 @@
+import {NextResponse} from 'next/server';
+import {transition} from '../../../lib/domain.mjs';
+import {isCoordinator,sameOrigin} from '../../../lib/session';
+export async function POST(req:Request){if(!sameOrigin(req))return NextResponse.json({error:'Origin rejected'},{status:403});try{const raw=await req.text();if(raw.length>400000)return NextResponse.json({error:'Demo workspace too large; export and reset it.'},{status:413});const {state,action}=JSON.parse(raw);const coordinator=await isCoordinator();if(['review','match','propose','advance','resolve','verifyVolunteer'].includes(action?.type)&&!coordinator)return NextResponse.json({error:'Enter the isolated coordinator demo first.'},{status:403});return NextResponse.json({state:transition(state,action,coordinator)},{headers:{'Cache-Control':'no-store'}})}catch(e){return NextResponse.json({error:e.message?.slice(0,600)||'Invalid request'},{status:400})}}

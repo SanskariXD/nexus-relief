@@ -1,0 +1,6 @@
+import {createHmac,timingSafeEqual} from 'node:crypto';
+import {cookies} from 'next/headers';
+const secret=()=>process.env.DEMO_SESSION_SECRET || (process.env.NODE_ENV==='development'?'local-development-demo-only':null);
+export function makeSession(){const key=secret();if(!key)throw Error('Set DEMO_SESSION_SECRET on the server to enable isolated demo coordinator sessions.');const payload=Buffer.from(JSON.stringify({role:'demo-coordinator',exp:Date.now()+3600000,scope:'isolated-simulation'})).toString('base64url');return payload+'.'+createHmac('sha256',key).update(payload).digest('base64url');}
+export async function isCoordinator(){const key=secret();if(!key)return false;const value=(await cookies()).get('nexus-demo')?.value||'';const [p,s]=value.split('.');if(!p||!s)return false;const expected=createHmac('sha256',key).update(p).digest('base64url');if(s.length!==expected.length||!timingSafeEqual(Buffer.from(s),Buffer.from(expected)))return false;try{const d=JSON.parse(Buffer.from(p,'base64url').toString());return d.role==='demo-coordinator'&&d.exp>Date.now()&&d.scope==='isolated-simulation';}catch{return false}}
+export function sameOrigin(request:Request){const origin=request.headers.get('origin');return origin===new URL(request.url).origin;}
